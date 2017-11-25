@@ -25,9 +25,10 @@ public class ToBase implements Algorithm {
     public int size_x;
     public int size_y;
     private byte startPos;
-    private final int[] tankNumber = {0};
-    private final int[] numberOfTanks = {5};
-    public static int[][] matrix;
+    private int tankNumber = 0;
+    private int numberOfTanks = 5;
+    public int[][] matrix;
+    private boolean[] wasBlocked = new boolean[5];
 
     public static class Cell{
         public static final byte EMPTY = 0;
@@ -47,7 +48,7 @@ public class ToBase implements Algorithm {
     @Override
     public List<TankMove> nextMoves(MapState mapState) {
         move++;
-        System.out.println("Move #: " + move);
+        System.out.println("BULAT_GAB Move)))00))0 #: " + move);
 
         enemyBasePos = mapState.getBases().stream().filter(x -> x.getTeamId() != teamId).findFirst().get();
         base_x = enemyBasePos.getX();
@@ -60,7 +61,6 @@ public class ToBase implements Algorithm {
 
             // Check whether MY_BASE on the left or right side
             startPos = base_x > (size_x / 2) ? Direction.LEFT : Direction.RIGHT;
-
 
             matrix = new int[size_x][size_y];
             List<Indestructible> indestructibles = mapState.getIndestructibles();
@@ -78,36 +78,43 @@ public class ToBase implements Algorithm {
             matrix[t.getX()][t.getY()] = t.getTeamId() == teamId ? Cell.MY_TANK : Cell.ENEMY_TANK;
         }
 
-        tankNumber[0] = 0;
+        tankNumber = 0;
 
         List<TankMove> tanks = new LinkedList<>();
         for(Tank tank : mapState.getTanks(teamId)){
             int tank_x = tank.getX();
             int tank_y = tank.getY();
-            byte dir = Direction.RIGHT;
+            byte dir = startPos == Direction.LEFT ? Direction.RIGHT : Direction.LEFT;
 
             if (isBlocked(tank_x, tank_y)) {
+                //wasBlocked[tankNumber] = true;
                 final Random rn = new Random();
                 int randomDir = rn.nextInt(2);
                 dir = randomDir == 1 ? (byte)1 : (byte)3;
+                wasBlocked[tankNumber] = true;
             }
-            boolean shoot = !isFriendOnALine(tank_x, tank_y, dir);
+            else {
+                wasBlocked[tankNumber] = false;
+            }
 
-            tankNumber[0]++;
+            boolean shoot = !isFriendOnALine(tank_x, tank_y, tank.getDir());
 
-            System.out.println("X: " + "Y: " );
+            tankNumber++;
+
+            System.out.println("Tank # " + tankNumber);
+            System.out.println("X: " + tank_x + "Y: " + tank_y);
 
             tanks.add(new TankMove(tank.getId(), dir, shoot));
         }
-        numberOfTanks[0] = tankNumber[0];
+        numberOfTanks = tankNumber;
         return tanks;
     }
 
 
     public boolean isBlocked(int x, int y) {
         try {
-            if (matrix[x + 1][y] == Cell.INDESTRUCTIBLE)
-                return true;
+            if (startPos == Direction.LEFT && matrix[x + 1][y] == Cell.INDESTRUCTIBLE) return true;
+            if (startPos == Direction.RIGHT && matrix[x - 1][y] == Cell.INDESTRUCTIBLE) return true;
         } catch (Exception e) {
             System.err.println(e);
         }
@@ -118,33 +125,52 @@ public class ToBase implements Algorithm {
         switch (dir){
             case Direction.UP:
                 for (int j = y; j > 0; j--) {
-                    if(matrix[x][j] == Cell.MY_TANK || matrix[x][j] == Cell.MY_BASE){
+                    if(y != j && (matrix[x][j] == Cell.MY_TANK || matrix[x][j] == Cell.MY_BASE)){
+                        System.out.println("isFriendOnALine<< ");
+
                         return true;
                     }
                 }
                 break;
             case Direction.DOWN:
                 for (int j = y; j < size_y; j++) {
-                    if(matrix[x][j] == Cell.MY_TANK || matrix[x][j] == Cell.MY_BASE){
+                    if(j != y && (matrix[x][j] == Cell.MY_TANK || matrix[x][j] == Cell.MY_BASE)){
+                        System.out.println("isFriendOnALine: " + x + " " + j);
                         return true;
                     }
                 }
                 break;
             case Direction.LEFT:
                 for (int j = x; j > 0; j--) {
-                    if(matrix[j][y] == Cell.MY_TANK || matrix[j][y] == Cell.MY_BASE){
+                    if(j != x && (matrix[j][y] == Cell.MY_TANK || matrix[j][y] == Cell.MY_BASE)){
                         return true;
                     }
                 }
                 break;
             case Direction.RIGHT:
                 for (int j = x; j < size_x; j++) {
-                    if(matrix[j][y] == Cell.MY_TANK || matrix[j][y] == Cell.MY_BASE){
+                    if(j != x && (matrix[j][y] == Cell.MY_TANK || matrix[j][y] == Cell.MY_BASE)){
                         return true;
                     }
                 }
                 break;
         }
         return false;
+    }
+
+    public int avoidIndestructible(int x, int y){
+        int minDistance = Integer.MAX_VALUE;
+        int minCoord_y = Integer.MAX_VALUE;
+        int k = startPos == Direction.LEFT ? 1 : -1;
+
+        for (int j = 0; j < size_y; j++) {
+            if(matrix[x + k][y] == Cell.INDESTRUCTIBLE)
+                continue;
+            int distance = (int)Math.round(Math.hypot(1, y - j));
+            if(distance < minDistance)
+                minDistance = distance;
+        }
+
+        return minCoord_y;
     }
 }
